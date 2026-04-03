@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 
 export default function VerifyOTPScreen() {
-  const [code, setCode] = useState(['', '', '', ''])
+  const [code, setCode] = useState(['', '', '', '', '', ''])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -30,7 +30,7 @@ export default function VerifyOTPScreen() {
     setCode(newCode)
 
     // Auto-focus next input
-    if (value && index < 3) {
+    if (value && index < 5) {
       inputRefs.current[index + 1]?.focus()
     }
   }
@@ -44,7 +44,7 @@ export default function VerifyOTPScreen() {
 
   const handleVerify = async () => {
     const otp = code.join('')
-    if (otp.length !== 4) return
+    if (otp.length !== 6) return
 
     setError('')
     setIsLoading(true)
@@ -62,7 +62,7 @@ export default function VerifyOTPScreen() {
       }
     } catch {
       setError('הקוד שהוזן שגוי. נסו שוב.')
-      setCode(['', '', '', ''])
+      setCode(['', '', '', '', '', ''])
       inputRefs.current[0]?.focus()
     } finally {
       setIsLoading(false)
@@ -91,8 +91,8 @@ export default function VerifyOTPScreen() {
         </p>
       </div>
 
-      {/* OTP Input */}
-      <div className="flex gap-3 mb-6" dir="ltr">
+      {/* OTP Input - 6 digits */}
+      <div className="flex gap-2 mb-6" dir="ltr">
         {code.map((digit, index) => (
           <input
             key={index}
@@ -103,7 +103,7 @@ export default function VerifyOTPScreen() {
             value={digit}
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
-            className="w-16 h-16 text-center text-2xl font-bold bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary transition-colors"
+            className="w-12 h-14 text-center text-2xl font-bold bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary transition-colors"
           />
         ))}
       </div>
