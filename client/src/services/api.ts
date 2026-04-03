@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // Axios instance with base URL and auto-attached JWT token
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: import.meta.env.PROD ? 'https://roadbuddy-api-2jme.onrender.com/api' : 'http://localhost:3001/api',
   headers: {
     'Content-Type': 'application/json',
   },

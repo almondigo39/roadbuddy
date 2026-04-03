@@ -6,7 +6,8 @@ let socket: Socket | null = null
 export function getSocket(): Socket {
   if (!socket) {
     const token = localStorage.getItem('token')
-    socket = io('http://localhost:3001', {
+    const serverUrl = import.meta.env.PROD ? 'https://roadbuddy-api-2jme.onrender.com' : 'http://localhost:3001'
+    socket = io(serverUrl, {
       auth: { token },
       autoConnect: false,
     })
