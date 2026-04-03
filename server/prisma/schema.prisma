@@ -1,0 +1,92 @@
+// Prisma schema for RoadBuddy - a social app connecting drivers available for calls
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Note: SQLite doesn't support enums, so we use String fields with these conventions:
+// availabilityMode: "AUTO" | "MANUAL"
+// friendship status: "PENDING" | "ACCEPTED" | "BLOCKED"
+// eventType: "BECAME_AVAILABLE" | "BECAME_UNAVAILABLE" | "CALL_INITIATED" | "NUDGE_SENT"
+
+model User {
+  id                 String   @id @default(uuid())
+  phoneNumber        String   @unique
+  name               String
+  avatarUrl          String?
+  bio                String?
+  availabilityMode   String   @default("MANUAL")
+  isAvailable        Boolean  @default(false)
+  isDriving          Boolean  @default(false)
+  lastLocationUpdate DateTime?
+  doNotDisturb       Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Friendships where this user is the initiator
+  sentFriendships     Friendship[] @relation("SentFriendships")
+  // Friendships where this user is the recipient
+  receivedFriendships Friendship[] @relation("ReceivedFriendships")
+  // Activity logs for this user
+  activityLogs        ActivityLog[] @relation("UserActivityLogs")
+  // Activity logs where this user is the target
+  targetActivityLogs  ActivityLog[] @relation("TargetActivityLogs")
+}
+
+model Friendship {
+  id         String  @id @default(uuid())
+  userId     String
+  friendId   String
+  status     String  @default("PENDING")
+  isFavorite Boolean @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // The user who initiated the friendship
+  user   User @relation("SentFriendships", fields: [userId], references: [id])
+  // The user who received the friend request
+  friend User @relation("ReceivedFriendships", fields: [friendId], references: [id])
+
+  // Prevent duplicate friend requests between the same pair
+  @@unique([userId, friendId])
+}
+
+model Call {
+  id          String   @id @default(uuid())
+  status      String   @default("ACTIVE")  // ACTIVE, ENDED
+  startedBy   String
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+
+  participants CallParticipant[]
+}
+
+model CallParticipant {
+  id       String   @id @default(uuid())
+  callId   String
+  userId   String
+  joinedAt DateTime @default(now())
+  leftAt   DateTime?
+
+  call Call @relation(fields: [callId], references: [id])
+
+  @@unique([callId, userId])
+}
+
+model ActivityLog {
+  id           String   @id @default(uuid())
+  userId       String
+  eventType    String
+  targetUserId String?
+  timestamp    DateTime @default(now())
+
+  // The user who performed the action
+  user       User  @relation("UserActivityLogs", fields: [userId], references: [id])
+  // The optional target user of the action
+  targetUser User? @relation("TargetActivityLogs", fields: [targetUserId], references: [id])
+}
