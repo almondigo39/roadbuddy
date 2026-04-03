@@ -35,10 +35,29 @@ export default function LoginScreen() {
       const result = await signInWithPhoneNumber(auth, phone, recaptchaRef.current)
       setConfirmationResult(result)
       navigate('/verify', { state: { phone } })
-    } catch (err) {
+    } catch (err: any) {
       console.error('Firebase phone auth error:', err)
-      setError('שגיאה בשליחת הקוד. ודאו שהמספר בפורמט +972...')
+      const code = err?.code || ''
+      const msg = err?.message || ''
+
+      if (code === 'auth/invalid-phone-number') {
+        setError('מספר טלפון לא תקין. ודאו שהמספר בפורמט +972...')
+      } else if (code === 'auth/too-many-requests') {
+        setError('יותר מדי ניסיונות. נסו שוב מאוחר יותר.')
+      } else if (code === 'auth/operation-not-allowed') {
+        setError('אימות טלפוני לא מופעל בפרויקט Firebase.')
+      } else if (code === 'auth/captcha-check-failed' || code === 'auth/recaptcha-not-enabled') {
+        setError('בעיית reCAPTCHA — בדקו הגדרות Firebase.')
+      } else {
+        setError(`שגיאה: ${code || msg || 'לא ידוע'}`)
+      }
+      console.error('Error code:', code, 'Message:', msg)
       // Reset reCAPTCHA on error
+      if (recaptchaRef.current) {
+        try {
+          recaptchaRef.current.clear()
+        } catch (_) {}
+      }
       recaptchaRef.current = null
     } finally {
       setIsLoading(false)
