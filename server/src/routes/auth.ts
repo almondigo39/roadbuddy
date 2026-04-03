@@ -1,5 +1,5 @@
 // Authentication routes: OTP send and verify flow
-// Uses Twilio in production, console log in development
+// Uses Twilio Verify API in production, console log in development
 
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
@@ -11,19 +11,18 @@ const router = Router();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'roadbuddy-dev-secret-change-in-production';
 
-// Twilio setup
+// Twilio Verify setup
 const twilioClient = process.env.TWILIO_ACCOUNT_SID
   ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
   : null;
-const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
+const VERIFY_SERVICE_SID = process.env.TWILIO_VERIFY_SID;
 
-// In-memory store for OTP codes (phone -> code)
+// In-memory store for OTP codes - used only in development
 const otpStore = new Map<string, string>();
 
 /**
  * POST /auth/send-otp
- * Generates a random 4-digit OTP for the given phone number.
- * Sends via Twilio SMS in production, logs to console in development.
+ * Sends OTP via Twilio Verify in production, logs to console in development.
  */
 router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
   const { phoneNumber } = req.body;
@@ -36,21 +35,18 @@ router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  // Generate a random 4-digit OTP
-  const otp = Math.floor(1000 + Math.random() * 9000).toString();
-  otpStore.set(phoneNumber, otp);
-
-  // Send OTP via Twilio or log to console
-  if (twilioClient && TWILIO_PHONE) {
+  // Use Twilio Verify API in production
+  if (twilioClient && VERIFY_SERVICE_SID) {
     try {
-      await twilioClient.messages.create({
-        body: `RoadBuddy: Your verification code is ${otp}`,
-        from: TWILIO_PHONE,
-        to: phoneNumber,
-      });
-      console.log(`[OTP] SMS sent to ${phoneNumber}`);
+      await twilioClient.verify.v2
+        .services(VERIFY_SERVICE_SID)
+        .verifications.create({
+          to: phoneNumber,
+          channel: 'sms',
+        });
+      console.log(`[OTP] Verification SMS sent to ${phoneNumber}`);
     } catch (error) {
-      console.error('[OTP] Twilio error:', error);
+      console.error('[OTP] Twilio Verify error:', error);
       res.status(500).json({
         success: false,
         error: 'Failed to send SMS. Please try again.',
@@ -58,7 +54,9 @@ router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
       return;
     }
   } else {
-    // Development mode - log to console
+    // Development mode - generate and log OTP
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    otpStore.set(phoneNumber, otp);
     console.log(`[OTP] Code for ${phoneNumber}: ${otp}`);
   }
 
@@ -70,7 +68,7 @@ router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
 
 /**
  * POST /auth/verify-otp
- * Verifies the OTP code for a phone number.
+ * Verifies the OTP code via Twilio Verify in production.
  * Creates a new user if one doesn't exist for the phone number.
  * Returns a JWT token on success.
  */
@@ -93,14 +91,42 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  // Verify the OTP code matches
-  const storedOtp = otpStore.get(phoneNumber);
-  if (!storedOtp || storedOtp !== code) {
-    res.status(401).json({
-      success: false,
-      error: 'Invalid or expired verification code',
-    } as ApiResponse);
-    return;
+  // Verify OTP via Twilio Verify API or local store
+  if (twilioClient && VERIFY_SERVICE_SID) {
+    try {
+      const check = await twilioClient.verify.v2
+        .services(VERIFY_SERVICE_SID)
+        .verificationChecks.create({
+          to: phoneNumber,
+          code: code,
+        });
+
+      if (check.status !== 'approved') {
+        res.status(401).json({
+          success: false,
+          error: 'Invalid or expired verification code',
+        } as ApiResponse);
+        return;
+      }
+    } catch (error) {
+      console.error('[OTP] Twilio Verify check error:', error);
+      res.status(401).json({
+        success: false,
+        error: 'Invalid or expired verification code',
+      } as ApiResponse);
+      return;
+    }
+  } else {
+    // Development mode - check local store
+    const storedOtp = otpStore.get(phoneNumber);
+    if (!storedOtp || storedOtp !== code) {
+      res.status(401).json({
+        success: false,
+        error: 'Invalid or expired verification code',
+      } as ApiResponse);
+      return;
+    }
+    otpStore.delete(phoneNumber);
   }
 
   try {
@@ -118,9 +144,6 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
       });
       console.log(`[AUTH] New user created for ${phoneNumber}`);
     }
-
-    // Clear the OTP from memory
-    otpStore.delete(phoneNumber);
 
     // Generate JWT token
     const token = jwt.sign(
