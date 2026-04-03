@@ -1,14 +1,21 @@
 // Authentication routes: OTP send and verify flow
-// For MVP, any 4-digit code is accepted during verification.
+// Uses Twilio in production, console log in development
 
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
-import { ApiResponse } from '../types';
+import twilio from 'twilio';
+import type { ApiResponse } from '../types';
 
 const router = Router();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'roadbuddy-dev-secret-change-in-production';
+
+// Twilio setup
+const twilioClient = process.env.TWILIO_ACCOUNT_SID
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
+const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
 
 // In-memory store for OTP codes (phone -> code)
 const otpStore = new Map<string, string>();
@@ -16,9 +23,9 @@ const otpStore = new Map<string, string>();
 /**
  * POST /auth/send-otp
  * Generates a random 4-digit OTP for the given phone number.
- * Stores it in memory and logs it to the console for development.
+ * Sends via Twilio SMS in production, logs to console in development.
  */
-router.post('/send-otp', (req: Request, res: Response): void => {
+router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
   const { phoneNumber } = req.body;
 
   if (!phoneNumber || typeof phoneNumber !== 'string') {
@@ -33,8 +40,27 @@ router.post('/send-otp', (req: Request, res: Response): void => {
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
   otpStore.set(phoneNumber, otp);
 
-  // Log OTP to console for development purposes
-  console.log(`[OTP] Code for ${phoneNumber}: ${otp}`);
+  // Send OTP via Twilio or log to console
+  if (twilioClient && TWILIO_PHONE) {
+    try {
+      await twilioClient.messages.create({
+        body: `RoadBuddy: Your verification code is ${otp}`,
+        from: TWILIO_PHONE,
+        to: phoneNumber,
+      });
+      console.log(`[OTP] SMS sent to ${phoneNumber}`);
+    } catch (error) {
+      console.error('[OTP] Twilio error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send SMS. Please try again.',
+      } as ApiResponse);
+      return;
+    }
+  } else {
+    // Development mode - log to console
+    console.log(`[OTP] Code for ${phoneNumber}: ${otp}`);
+  }
 
   res.json({
     success: true,
@@ -45,7 +71,6 @@ router.post('/send-otp', (req: Request, res: Response): void => {
 /**
  * POST /auth/verify-otp
  * Verifies the OTP code for a phone number.
- * For MVP: accepts ANY 4-digit code.
  * Creates a new user if one doesn't exist for the phone number.
  * Returns a JWT token on success.
  */
@@ -68,11 +93,12 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  // For MVP: accept any 4-digit code
-  if (!/^\d{4}$/.test(code)) {
-    res.status(400).json({
+  // Verify the OTP code matches
+  const storedOtp = otpStore.get(phoneNumber);
+  if (!storedOtp || storedOtp !== code) {
+    res.status(401).json({
       success: false,
-      error: 'OTP must be a 4-digit code',
+      error: 'Invalid or expired verification code',
     } as ApiResponse);
     return;
   }
