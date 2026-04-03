@@ -1,13 +1,24 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Phone, ArrowLeft } from 'lucide-react'
-import api from '../services/api'
+import { auth, RecaptchaVerifier, signInWithPhoneNumber, setConfirmationResult } from '../services/firebase'
+import type { RecaptchaVerifier as RecaptchaVerifierType } from 'firebase/auth'
 
 export default function LoginScreen() {
   const [phone, setPhone] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const recaptchaRef = useRef<RecaptchaVerifierType | null>(null)
+
+  useEffect(() => {
+    // Initialize invisible reCAPTCHA
+    if (!recaptchaRef.current) {
+      recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+      })
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -15,11 +26,20 @@ export default function LoginScreen() {
     setIsLoading(true)
 
     try {
-      await api.post('/auth/send-otp', { phoneNumber: phone })
-      // Navigate to verify screen, passing phone via state
+      if (!recaptchaRef.current) {
+        recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+        })
+      }
+
+      const result = await signInWithPhoneNumber(auth, phone, recaptchaRef.current)
+      setConfirmationResult(result)
       navigate('/verify', { state: { phone } })
-    } catch {
-      setError('שגיאה בשליחת הקוד. נסו שוב.')
+    } catch (err) {
+      console.error('Firebase phone auth error:', err)
+      setError('שגיאה בשליחת הקוד. ודאו שהמספר בפורמט +972...')
+      // Reset reCAPTCHA on error
+      recaptchaRef.current = null
     } finally {
       setIsLoading(false)
     }
@@ -27,6 +47,9 @@ export default function LoginScreen() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-6 py-12">
+      {/* reCAPTCHA container (invisible) */}
+      <div id="recaptcha-container"></div>
+
       {/* Logo / Title area */}
       <div className="mb-12 text-center">
         <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
@@ -43,14 +66,14 @@ export default function LoginScreen() {
       {/* Phone input form */}
       <form onSubmit={handleSubmit} className="w-full max-w-sm">
         <label className="block text-sm font-medium text-text-light mb-2">
-          הזינו מספר טלפון
+          הזינו מספר טלפון (בפורמט +972...)
         </label>
         <div className="relative mb-4">
           <input
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="050-1234567"
+            placeholder="+972501234567"
             className="w-full px-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary transition-colors text-right"
             dir="ltr"
           />

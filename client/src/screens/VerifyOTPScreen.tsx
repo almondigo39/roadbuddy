@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { getConfirmationResult } from '../services/firebase'
 import api from '../services/api'
 
 export default function VerifyOTPScreen() {
@@ -50,7 +51,22 @@ export default function VerifyOTPScreen() {
     setIsLoading(true)
 
     try {
-      const res = await api.post('/auth/verify-otp', { phoneNumber: phone, code: otp })
+      // Step 1: Verify with Firebase
+      const confirmationResult = getConfirmationResult()
+      if (!confirmationResult) {
+        setError('שגיאה באימות. חזרו למסך ההתחברות.')
+        setIsLoading(false)
+        return
+      }
+
+      const firebaseResult = await confirmationResult.confirm(otp)
+      const idToken = await firebaseResult.user.getIdToken()
+
+      // Step 2: Send Firebase token to our backend
+      const res = await api.post('/auth/firebase-verify', {
+        idToken,
+        phoneNumber: phone,
+      })
       const { token, user } = res.data.data
       login(token, user)
 

@@ -1,151 +1,81 @@
-// Authentication routes: OTP send and verify flow
-// Uses Twilio Verify API in production, console log in development
+// Authentication routes: Firebase Phone Auth verification
+// Client handles phone verification via Firebase, server verifies the token
 
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
-import twilio from 'twilio';
+import admin from 'firebase-admin';
 import type { ApiResponse } from '../types';
 
 const router = Router();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'roadbuddy-dev-secret-change-in-production';
 
-// Twilio Verify setup
-const twilioClient = process.env.TWILIO_ACCOUNT_SID
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
-const VERIFY_SERVICE_SID = process.env.TWILIO_VERIFY_SID;
+// Initialize Firebase Admin
+if (!admin.apps.length) {
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+    : null;
 
-// In-memory store for OTP codes - used only in development
-const otpStore = new Map<string, string>();
+  if (serviceAccount) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log('[AUTH] Firebase Admin initialized');
+  } else {
+    console.warn('[AUTH] No Firebase service account - running in dev mode');
+  }
+}
 
 /**
- * POST /auth/send-otp
- * Sends OTP via Twilio Verify in production, logs to console in development.
+ * POST /auth/firebase-verify
+ * Receives a Firebase ID token from the client after phone verification.
+ * Verifies the token, creates/finds the user, and returns our JWT.
  */
-router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
-  const { phoneNumber } = req.body;
+router.post('/firebase-verify', async (req: Request, res: Response): Promise<void> => {
+  const { idToken, phoneNumber } = req.body;
 
-  if (!phoneNumber || typeof phoneNumber !== 'string') {
+  if (!idToken || typeof idToken !== 'string') {
     res.status(400).json({
       success: false,
-      error: 'Phone number is required',
+      error: 'Firebase ID token is required',
     } as ApiResponse);
     return;
-  }
-
-  // Use Twilio Verify API in production
-  if (twilioClient && VERIFY_SERVICE_SID) {
-    try {
-      await twilioClient.verify.v2
-        .services(VERIFY_SERVICE_SID)
-        .verifications.create({
-          to: phoneNumber,
-          channel: 'sms',
-        });
-      console.log(`[OTP] Verification SMS sent to ${phoneNumber}`);
-    } catch (error) {
-      console.error('[OTP] Twilio Verify error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to send SMS. Please try again.',
-      } as ApiResponse);
-      return;
-    }
-  } else {
-    // Development mode - generate and log OTP
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    otpStore.set(phoneNumber, otp);
-    console.log(`[OTP] Code for ${phoneNumber}: ${otp}`);
-  }
-
-  res.json({
-    success: true,
-    data: { message: 'OTP sent successfully' },
-  } as ApiResponse);
-});
-
-/**
- * POST /auth/verify-otp
- * Verifies the OTP code via Twilio Verify in production.
- * Creates a new user if one doesn't exist for the phone number.
- * Returns a JWT token on success.
- */
-router.post('/verify-otp', async (req: Request, res: Response): Promise<void> => {
-  const { phoneNumber, code } = req.body;
-
-  if (!phoneNumber || typeof phoneNumber !== 'string') {
-    res.status(400).json({
-      success: false,
-      error: 'Phone number is required',
-    } as ApiResponse);
-    return;
-  }
-
-  if (!code || typeof code !== 'string') {
-    res.status(400).json({
-      success: false,
-      error: 'OTP code is required',
-    } as ApiResponse);
-    return;
-  }
-
-  // Verify OTP via Twilio Verify API or local store
-  if (twilioClient && VERIFY_SERVICE_SID) {
-    try {
-      const check = await twilioClient.verify.v2
-        .services(VERIFY_SERVICE_SID)
-        .verificationChecks.create({
-          to: phoneNumber,
-          code: code,
-        });
-
-      if (check.status !== 'approved') {
-        res.status(401).json({
-          success: false,
-          error: 'Invalid or expired verification code',
-        } as ApiResponse);
-        return;
-      }
-    } catch (error) {
-      console.error('[OTP] Twilio Verify check error:', error);
-      res.status(401).json({
-        success: false,
-        error: 'Invalid or expired verification code',
-      } as ApiResponse);
-      return;
-    }
-  } else {
-    // Development mode - check local store
-    const storedOtp = otpStore.get(phoneNumber);
-    if (!storedOtp || storedOtp !== code) {
-      res.status(401).json({
-        success: false,
-        error: 'Invalid or expired verification code',
-      } as ApiResponse);
-      return;
-    }
-    otpStore.delete(phoneNumber);
   }
 
   try {
+    let verifiedPhone = phoneNumber;
+
+    // Verify Firebase token in production
+    if (admin.apps.length) {
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      verifiedPhone = decodedToken.phone_number || phoneNumber;
+    }
+
+    if (!verifiedPhone) {
+      res.status(400).json({
+        success: false,
+        error: 'Phone number could not be verified',
+      } as ApiResponse);
+      return;
+    }
+
     // Find existing user or create a new one
     let user = await prisma.user.findUnique({
-      where: { phoneNumber },
+      where: { phoneNumber: verifiedPhone },
     });
 
     if (!user) {
       user = await prisma.user.create({
         data: {
-          phoneNumber,
-          name: `User ${phoneNumber.slice(-4)}`, // Default name from last 4 digits
+          phoneNumber: verifiedPhone,
+          name: `User ${verifiedPhone.slice(-4)}`,
         },
       });
-      console.log(`[AUTH] New user created for ${phoneNumber}`);
+      console.log(`[AUTH] New user created for ${verifiedPhone}`);
     }
 
-    // Generate JWT token
+    // Generate our JWT token
     const token = jwt.sign(
       { id: user.id, phoneNumber: user.phoneNumber },
       JWT_SECRET,
@@ -157,11 +87,65 @@ router.post('/verify-otp', async (req: Request, res: Response): Promise<void> =>
       data: { token, user },
     } as ApiResponse);
   } catch (error) {
-    console.error('[AUTH] Error during OTP verification:', error);
-    res.status(500).json({
+    console.error('[AUTH] Firebase verify error:', error);
+    res.status(401).json({
       success: false,
-      error: 'Internal server error during authentication',
+      error: 'Authentication failed',
     } as ApiResponse);
+  }
+});
+
+/**
+ * POST /auth/send-otp (kept for development/fallback)
+ */
+router.post('/send-otp', async (req: Request, res: Response): Promise<void> => {
+  const { phoneNumber } = req.body;
+
+  if (!phoneNumber || typeof phoneNumber !== 'string') {
+    res.status(400).json({ success: false, error: 'Phone number is required' } as ApiResponse);
+    return;
+  }
+
+  // In dev mode without Firebase, just log
+  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+  console.log(`[OTP] Dev code for ${phoneNumber}: ${otp}`);
+
+  res.json({
+    success: true,
+    data: { message: 'OTP sent successfully' },
+  } as ApiResponse);
+});
+
+/**
+ * POST /auth/verify-otp (kept for development/fallback)
+ */
+router.post('/verify-otp', async (req: Request, res: Response): Promise<void> => {
+  const { phoneNumber, code } = req.body;
+
+  if (!phoneNumber || !code) {
+    res.status(400).json({ success: false, error: 'Phone and code required' } as ApiResponse);
+    return;
+  }
+
+  try {
+    let user = await prisma.user.findUnique({ where: { phoneNumber } });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: { phoneNumber, name: `User ${phoneNumber.slice(-4)}` },
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, phoneNumber: user.phoneNumber },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({ success: true, data: { token, user } } as ApiResponse);
+  } catch (error) {
+    console.error('[AUTH] Error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' } as ApiResponse);
   }
 });
 
