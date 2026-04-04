@@ -10,9 +10,10 @@ export default function LoginScreen() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
   const recaptchaRef = useRef<RecaptchaVerifierType | null>(null)
+  const containerIdRef = useRef(0)
 
-  const setupRecaptcha = async () => {
-    // Clear previous instance completely
+  const setupRecaptcha = () => {
+    // Clear previous instance
     if (recaptchaRef.current) {
       try {
         recaptchaRef.current.clear()
@@ -20,14 +21,18 @@ export default function LoginScreen() {
       recaptchaRef.current = null
     }
 
-    // Clear the container element to remove any leftover reCAPTCHA DOM
-    const container = document.getElementById('recaptcha-container')
-    if (container) {
-      container.innerHTML = ''
+    // Remove old container and create a brand new one
+    const oldContainer = document.getElementById('recaptcha-container')
+    if (oldContainer) {
+      oldContainer.remove()
     }
+    containerIdRef.current += 1
+    const newContainer = document.createElement('div')
+    newContainer.id = 'recaptcha-container'
+    document.body.appendChild(newContainer)
 
-    // Create fresh reCAPTCHA
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+    // Create fresh reCAPTCHA on the new element
+    const verifier = new RecaptchaVerifier(auth, newContainer, {
       size: 'invisible',
     })
     recaptchaRef.current = verifier
