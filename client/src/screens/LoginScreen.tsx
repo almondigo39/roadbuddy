@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Phone, ArrowLeft } from 'lucide-react'
 import { auth, RecaptchaVerifier, signInWithPhoneNumber, setConfirmationResult } from '../services/firebase'
@@ -10,15 +10,30 @@ export default function LoginScreen() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
   const recaptchaRef = useRef<RecaptchaVerifierType | null>(null)
+  const recaptchaWidgetId = useRef<number | null>(null)
 
-  useEffect(() => {
-    // Initialize invisible reCAPTCHA
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-      })
+  const setupRecaptcha = async () => {
+    // Clear previous instance completely
+    if (recaptchaRef.current) {
+      try {
+        recaptchaRef.current.clear()
+      } catch (_) {}
+      recaptchaRef.current = null
     }
-  }, [])
+
+    // Clear the container element to remove any leftover reCAPTCHA DOM
+    const container = document.getElementById('recaptcha-container')
+    if (container) {
+      container.innerHTML = ''
+    }
+
+    // Create fresh reCAPTCHA
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+    })
+    recaptchaRef.current = verifier
+    return verifier
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,13 +41,8 @@ export default function LoginScreen() {
     setIsLoading(true)
 
     try {
-      if (!recaptchaRef.current) {
-        recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-        })
-      }
-
-      const result = await signInWithPhoneNumber(auth, phone, recaptchaRef.current)
+      const verifier = await setupRecaptcha()
+      const result = await signInWithPhoneNumber(auth, phone, verifier)
       setConfirmationResult(result)
       navigate('/verify', { state: { phone } })
     } catch (err: any) {
