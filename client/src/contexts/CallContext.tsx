@@ -106,11 +106,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const socket = getSocket()
       socket.emit('call_invite', { callId, targetUserIds: participantIds })
 
-      await initiateWebRTCConnections(callId, participantIds)
+      // Don't initiate WebRTC yet — wait for the recipient to accept.
+      // WebRTC connections will be started when we receive 'call_accepted'.
     } catch (error) {
       console.error('[CALL] Failed to start call:', error)
     }
-  }, [user, initiateWebRTCConnections])
+  }, [user])
 
   /**
    * Accept an incoming call.
@@ -240,11 +241,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // Someone accepted our call
-    const handleAccepted = (data: { callId: string; userId: string }) => {
+    // Someone accepted our call — now initiate WebRTC connection to them
+    const handleAccepted = async (data: { callId: string; userId: string }) => {
       setActiveCall((prev) => {
         if (!prev || prev.callId !== data.callId) return prev
-        // Participant info will be updated when we get their user data
         const alreadyExists = prev.participants.some((p) => p.id === data.userId)
         if (alreadyExists) return prev
         return {
@@ -252,6 +252,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
           participants: [...prev.participants, { id: data.userId, name: '', avatarUrl: undefined }],
         }
       })
+
+      // Now start WebRTC with the accepted user
+      try {
+        await initiateWebRTCConnections(data.callId, [data.userId])
+      } catch (error) {
+        console.error('[CALL] Failed to initiate WebRTC after acceptance:', error)
+      }
     }
 
     // Someone rejected our call
@@ -294,8 +301,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // WebRTC offer received
+    // WebRTC offer received — only handle if user has accepted the call (has activeCall)
     const handleOffer = async (data: { callId: string; fromUserId: string; offer: RTCSessionDescriptionInit }) => {
+      // Only process WebRTC offers if we have an active call
+      // (meaning we already accepted). Don't auto-connect on incoming offers.
+      if (!activeCallRef.current || activeCallRef.current.callId !== data.callId) {
+        console.log('[CALL] Ignoring WebRTC offer — no active call or mismatched callId')
+        return
+      }
+
       try {
         await webrtcService.getLocalStream()
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Settings, Users, User, CarFront, Activity } from 'lucide-react'
+import { Settings, Users, User, CarFront, Activity, Zap } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import { connectSocket, getSocket, disconnectSocket } from '../services/socket'
@@ -128,6 +128,20 @@ export default function MainScreen() {
     }
   }, [setAvailability])
 
+  const handleModeToggle = async () => {
+    const newMode = isAutoMode ? 'MANUAL' : 'AUTO'
+    try {
+      await api.put('/users/me', { availabilityMode: newMode })
+      updateUser({ availabilityMode: newMode })
+      // When switching to manual, turn off availability
+      if (newMode === 'MANUAL') {
+        await setAvailability(false, null)
+      }
+    } catch {
+      // Silently fail
+    }
+  }
+
   const handleNudge = async (friendId: string) => {
     try {
       await api.post(`/nudge/${friendId}`)
@@ -169,18 +183,34 @@ export default function MainScreen() {
 
       {/* Main content */}
       <div className="flex-1 px-5 py-6 pb-24">
-        {/* Auto mode status indicator */}
-        {isAutoMode && (
-          <div className="flex items-center gap-2 mb-3 text-sm text-text-light">
-            <Activity className="w-4 h-4" />
-            <span>זיהוי נסיעה פעיל</span>
-            {/* Pulsing dot */}
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-            </span>
+        {/* Mode selector: Manual / Auto */}
+        <div className="flex items-center justify-between mb-4 bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2">
+            {isAutoMode ? (
+              <>
+                <Activity className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-text">אוטומטי (זיהוי נסיעה)</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4 text-text-light" />
+                <span className="text-sm font-medium text-text">ידני</span>
+              </>
+            )}
           </div>
-        )}
+          <button
+            onClick={handleModeToggle}
+            className={`relative w-12 h-7 rounded-full transition-colors duration-300 ${
+              isAutoMode ? 'bg-primary' : 'bg-gray-300'
+            }`}
+          >
+            <div
+              className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${
+                isAutoMode ? 'left-5' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
 
         {/* Availability toggle / auto-mode status card */}
         <div className="mb-8">

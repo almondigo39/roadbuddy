@@ -39,23 +39,37 @@ export default function LoginScreen() {
     return verifier
   }
 
+  // Convert local Israeli number (05xx) to international format (+9725xx)
+  const normalizePhone = (input: string): string => {
+    const digits = input.trim()
+    if (digits.startsWith('0')) {
+      return '+972' + digits.slice(1)
+    }
+    if (digits.startsWith('+')) {
+      return digits
+    }
+    return '+972' + digits
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setIsLoading(true)
 
+    const normalizedPhone = normalizePhone(phone)
+
     try {
       const verifier = await setupRecaptcha()
-      const result = await signInWithPhoneNumber(auth, phone, verifier)
+      const result = await signInWithPhoneNumber(auth, normalizedPhone, verifier)
       setConfirmationResult(result)
-      navigate('/verify', { state: { phone } })
+      navigate('/verify', { state: { phone: normalizedPhone } })
     } catch (err: any) {
       console.error('Firebase phone auth error:', err)
       const code = err?.code || ''
       const msg = err?.message || ''
 
       if (code === 'auth/invalid-phone-number') {
-        setError('מספר טלפון לא תקין. ודאו שהמספר בפורמט +972...')
+        setError('מספר טלפון לא תקין')
       } else if (code === 'auth/too-many-requests') {
         setError('יותר מדי ניסיונות. נסו שוב מאוחר יותר.')
       } else if (code === 'auth/operation-not-allowed') {
@@ -99,14 +113,14 @@ export default function LoginScreen() {
       {/* Phone input form */}
       <form onSubmit={handleSubmit} className="w-full max-w-sm">
         <label className="block text-sm font-medium text-text-light mb-2">
-          הזינו מספר טלפון (בפורמט +972...)
+          הזינו מספר טלפון
         </label>
         <div className="relative mb-4">
           <input
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="+972501234567"
+            placeholder="0501234567"
             className="w-full px-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary transition-colors text-right"
             dir="ltr"
           />

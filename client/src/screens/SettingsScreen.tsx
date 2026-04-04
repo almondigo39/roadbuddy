@@ -1,27 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, LogOut, Moon, Zap } from 'lucide-react'
+import { ArrowRight, LogOut, Moon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 
 export default function SettingsScreen() {
   const { user, updateUser, logout } = useAuth()
-  const [availabilityMode, setAvailabilityMode] = useState<'AUTO' | 'MANUAL'>(
-    user?.availabilityMode || 'MANUAL'
-  )
   const [doNotDisturb, setDoNotDisturb] = useState(user?.doNotDisturb || false)
   const navigate = useNavigate()
-
-  const handleModeToggle = async () => {
-    const newMode = availabilityMode === 'AUTO' ? 'MANUAL' : 'AUTO'
-    setAvailabilityMode(newMode)
-    try {
-      await api.put('/users/me', { availabilityMode: newMode })
-      updateUser({ availabilityMode: newMode })
-    } catch {
-      setAvailabilityMode(availabilityMode)
-    }
-  }
 
   const handleDndToggle = async () => {
     const newDnd = !doNotDisturb
@@ -53,35 +39,6 @@ export default function SettingsScreen() {
       </header>
 
       <div className="flex-1 px-5 py-6">
-        {/* Availability mode */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-text">מצב זמינות</h3>
-                <p className="text-sm text-text-light">
-                  {availabilityMode === 'AUTO' ? 'אוטומטי (זיהוי נסיעה)' : 'ידני'}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleModeToggle}
-              className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${
-                availabilityMode === 'AUTO' ? 'bg-primary' : 'bg-gray-300'
-              }`}
-            >
-              <div
-                className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${
-                  availabilityMode === 'AUTO' ? 'left-7' : 'left-1'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
         {/* Do Not Disturb */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
           <div className="flex items-center justify-between">
