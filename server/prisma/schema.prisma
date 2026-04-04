@@ -22,6 +22,7 @@ model User {
   bio                String?
   availabilityMode   String   @default("MANUAL")
   isAvailable        Boolean  @default(false)
+  availableUntil     DateTime?
   isDriving          Boolean  @default(false)
   lastLocationUpdate DateTime?
   doNotDisturb       Boolean  @default(false)

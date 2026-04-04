@@ -9,6 +9,72 @@ import { AuthUser, StatusUpdatePayload, LocationUpdatePayload } from './types';
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'roadbuddy-dev-secret-change-in-production';
 
+// Track availability expiry timers per user (so we can cancel them if user changes status)
+const availabilityTimers = new Map<string, NodeJS.Timeout>();
+
+/**
+ * Clear any existing availability timer for a user.
+ */
+function clearAvailabilityTimer(userId: string) {
+  const existing = availabilityTimers.get(userId);
+  if (existing) {
+    clearTimeout(existing);
+    availabilityTimers.delete(userId);
+  }
+}
+
+/**
+ * Set a timer to automatically mark a user as unavailable when their availableUntil expires.
+ * Also notifies all their friends.
+ */
+function setAvailabilityTimer(userId: string, availableUntil: Date, io: SocketServer) {
+  clearAvailabilityTimer(userId);
+
+  const msRemaining = availableUntil.getTime() - Date.now();
+  if (msRemaining <= 0) return;
+
+  const timer = setTimeout(async () => {
+    availabilityTimers.delete(userId);
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isAvailable: false, availableUntil: null },
+      });
+
+      await prisma.activityLog.create({
+        data: { userId, eventType: 'BECAME_UNAVAILABLE' },
+      });
+
+      // Notify friends
+      const friendships = await prisma.friendship.findMany({
+        where: {
+          status: 'ACCEPTED',
+          OR: [{ userId }, { friendId: userId }],
+        },
+      });
+
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, isAvailable: true, isDriving: true, doNotDisturb: true },
+      });
+
+      friendships.forEach((f) => {
+        const friendUserId = f.userId === userId ? f.friendId : f.userId;
+        io.to(friendUserId).emit('friend_unavailable', updatedUser);
+      });
+
+      // Also notify the user themselves so their UI updates
+      io.to(userId).emit('availability_expired');
+
+      console.log(`[SOCKET] Availability expired for user ${userId}`);
+    } catch (error) {
+      console.error('[SOCKET] Error expiring availability:', error);
+    }
+  }, msRemaining);
+
+  availabilityTimers.set(userId, timer);
+}
+
 /**
  * Initializes Socket.io on the given HTTP server.
  * Handles authentication, status updates, location updates, and disconnect events.
@@ -50,18 +116,36 @@ export const initializeSocket = (httpServer: HttpServer): SocketServer => {
      * Handle status updates (availability and driving state).
      * When a user's status changes, notify all their accepted friends.
      */
-    socket.on('status_update', async (payload: StatusUpdatePayload) => {
+    socket.on('status_update', async (payload: StatusUpdatePayload & { availableUntil?: string | null }) => {
       try {
-        const { isAvailable, isDriving } = payload;
+        const { isAvailable, isDriving, availableUntil } = payload;
+
+        // Build update data
+        const updateData: any = {};
+        if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+        if (isDriving !== undefined) updateData.isDriving = isDriving;
+
+        // Handle availableUntil for manual timed availability
+        if (availableUntil !== undefined) {
+          updateData.availableUntil = availableUntil ? new Date(availableUntil) : null;
+        }
+
+        // If turning off availability, clear the timer and availableUntil
+        if (isAvailable === false) {
+          updateData.availableUntil = null;
+          clearAvailabilityTimer(user.id);
+        }
 
         // Update the user's status in the database
         await prisma.user.update({
           where: { id: user.id },
-          data: {
-            ...(isAvailable !== undefined && { isAvailable }),
-            ...(isDriving !== undefined && { isDriving }),
-          },
+          data: updateData,
         });
+
+        // Set expiry timer if availableUntil is provided and user is becoming available
+        if (isAvailable && updateData.availableUntil) {
+          setAvailabilityTimer(user.id, updateData.availableUntil, io);
+        }
 
         // Log the availability change
         if (isAvailable !== undefined) {
@@ -277,11 +361,30 @@ export const initializeSocket = (httpServer: HttpServer): SocketServer => {
       console.log(`[SOCKET] User disconnected: ${user.id}`);
 
       try {
-        // Mark user as unavailable when they disconnect
+        // Check if user has timed manual availability that hasn't expired yet
+        const currentUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { availabilityMode: true, availableUntil: true, isAvailable: true },
+        });
+
+        // If MANUAL mode with active timed availability, keep them available
+        // The server-side timer will handle expiry
+        if (
+          currentUser?.availabilityMode === 'MANUAL' &&
+          currentUser?.availableUntil &&
+          currentUser.availableUntil > new Date()
+        ) {
+          console.log(`[SOCKET] User ${user.id} disconnected but has timed availability until ${currentUser.availableUntil} — keeping available`);
+          return;
+        }
+
+        // Otherwise, mark user as unavailable
         await prisma.user.update({
           where: { id: user.id },
-          data: { isAvailable: false },
+          data: { isAvailable: false, availableUntil: null },
         });
+
+        clearAvailabilityTimer(user.id);
 
         // Notify friends that this user is no longer available
         const friendships = await prisma.friendship.findMany({

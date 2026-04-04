@@ -10,6 +10,7 @@ interface User {
   bio?: string
   avatarUrl?: string
   isAvailable?: boolean
+  availableUntil?: string | null
   availabilityMode?: 'AUTO' | 'MANUAL'
   doNotDisturb?: boolean
 }

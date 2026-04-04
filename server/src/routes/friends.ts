@@ -282,25 +282,30 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
         user: {
           select: {
             id: true, name: true, phoneNumber: true, avatarUrl: true,
-            isAvailable: true, isDriving: true, doNotDisturb: true,
+            isAvailable: true, availableUntil: true, isDriving: true, doNotDisturb: true,
           },
         },
         friend: {
           select: {
             id: true, name: true, phoneNumber: true, avatarUrl: true,
-            isAvailable: true, isDriving: true, doNotDisturb: true,
+            isAvailable: true, availableUntil: true, isDriving: true, doNotDisturb: true,
           },
         },
       },
     });
 
     // Map friendships so the "friend" field always points to the other user
+    // Also check if timed availability has expired
+    const now = new Date();
     const friends = friendships.map((f) => {
       const friendData = f.userId === req.user!.id ? f.friend : f.user;
+      // If availableUntil has passed, treat as unavailable
+      const isExpired = friendData.availableUntil && friendData.availableUntil < now;
       return {
         friendshipId: f.id,
         isFavorite: f.isFavorite,
         ...friendData,
+        isAvailable: isExpired ? false : friendData.isAvailable,
       };
     });
 
@@ -334,13 +339,13 @@ router.get('/available', async (req: AuthRequest, res: Response): Promise<void> 
         user: {
           select: {
             id: true, name: true, phoneNumber: true, avatarUrl: true,
-            isAvailable: true, isDriving: true, doNotDisturb: true,
+            isAvailable: true, availableUntil: true, isDriving: true, doNotDisturb: true,
           },
         },
         friend: {
           select: {
             id: true, name: true, phoneNumber: true, avatarUrl: true,
-            isAvailable: true, isDriving: true, doNotDisturb: true,
+            isAvailable: true, availableUntil: true, isDriving: true, doNotDisturb: true,
           },
         },
       },

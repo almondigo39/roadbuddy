@@ -21,6 +21,7 @@ interface Friend {
 export default function MainScreen() {
   const { user, updateUser } = useAuth()
   const [isAvailable, setIsAvailable] = useState(user?.isAvailable || false)
+  const [availableUntil, setAvailableUntil] = useState<string | null>(user?.availableUntil || null)
   const [isDriving, setIsDriving] = useState(false)
   const [friends, setFriends] = useState<Friend[]>([])
   const [isToggling, setIsToggling] = useState(false)
@@ -29,15 +30,22 @@ export default function MainScreen() {
   const isAutoMode = user?.availabilityMode === 'AUTO'
 
   // Helper to update availability on the server and emit via socket
-  const setAvailability = useCallback(async (newStatus: boolean) => {
+  const setAvailability = useCallback(async (newStatus: boolean, untilDate?: string | null) => {
     try {
-      await api.put('/users/me/status', { isAvailable: newStatus })
+      await api.put('/users/me/status', {
+        isAvailable: newStatus,
+        availableUntil: untilDate ?? null,
+      })
       setIsAvailable(newStatus)
-      updateUser({ isAvailable: newStatus })
+      setAvailableUntil(untilDate ?? null)
+      updateUser({ isAvailable: newStatus, availableUntil: untilDate ?? null })
 
       // Emit status update via socket
       const socket = getSocket()
-      socket.emit('status_update', { isAvailable: newStatus })
+      socket.emit('status_update', {
+        isAvailable: newStatus,
+        availableUntil: untilDate ?? null,
+      })
     } catch {
       // Silently fail — availability will be stale until next update
     }
@@ -57,6 +65,13 @@ export default function MainScreen() {
 
     socket.on('friend_unavailable', (data: { id: string }) => {
       setFriends(prev => prev.map(f => f.id === data.id ? { ...f, isAvailable: false } : f))
+    })
+
+    // Listen for server-side availability expiry
+    socket.on('availability_expired', () => {
+      setIsAvailable(false)
+      setAvailableUntil(null)
+      updateUser({ isAvailable: false, availableUntil: null })
     })
 
     return () => {
@@ -90,17 +105,28 @@ export default function MainScreen() {
     }
   }
 
-  const handleToggleAvailability = async () => {
+  const handleSetDuration = async (minutes: number) => {
     setIsToggling(true)
     try {
-      const newStatus = !isAvailable
-      await setAvailability(newStatus)
+      const until = new Date(Date.now() + minutes * 60 * 1000).toISOString()
+      await setAvailability(true, until)
     } catch {
       // Revert on error
     } finally {
       setIsToggling(false)
     }
   }
+
+  const handleTurnOff = useCallback(async () => {
+    setIsToggling(true)
+    try {
+      await setAvailability(false, null)
+    } catch {
+      // Revert on error
+    } finally {
+      setIsToggling(false)
+    }
+  }, [setAvailability])
 
   const handleNudge = async (friendId: string) => {
     try {
@@ -160,7 +186,9 @@ export default function MainScreen() {
         <div className="mb-8">
           <AvailabilityToggle
             isAvailable={isAvailable}
-            onToggle={handleToggleAvailability}
+            availableUntil={availableUntil}
+            onSetDuration={handleSetDuration}
+            onTurnOff={handleTurnOff}
             isLoading={isToggling}
             autoMode={isAutoMode}
             isDriving={isDriving}

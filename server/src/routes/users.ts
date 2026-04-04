@@ -80,7 +80,7 @@ router.put('/me', async (req: AuthRequest, res: Response): Promise<void> => {
  * Also logs the status change in the activity log.
  */
 router.put('/me/status', async (req: AuthRequest, res: Response): Promise<void> => {
-  const { isAvailable, isDriving } = req.body;
+  const { isAvailable, isDriving, availableUntil } = req.body;
 
   if (isAvailable === undefined && isDriving === undefined) {
     res.status(400).json({
@@ -91,12 +91,18 @@ router.put('/me/status', async (req: AuthRequest, res: Response): Promise<void> 
   }
 
   try {
+    const updateData: any = {};
+    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+    if (isDriving !== undefined) updateData.isDriving = isDriving;
+    if (availableUntil !== undefined) {
+      updateData.availableUntil = availableUntil ? new Date(availableUntil) : null;
+    }
+    // Clear availableUntil when turning off
+    if (isAvailable === false) updateData.availableUntil = null;
+
     const user = await prisma.user.update({
       where: { id: req.user!.id },
-      data: {
-        ...(isAvailable !== undefined && { isAvailable }),
-        ...(isDriving !== undefined && { isDriving }),
-      },
+      data: updateData,
     });
 
     // Log the availability change
