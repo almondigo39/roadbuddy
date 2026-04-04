@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, initializeRecaptchaConfig } from 'firebase/auth'
 import type { ConfirmationResult } from 'firebase/auth'
 
 const firebaseConfig = {
@@ -13,6 +13,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
+
+// Initialize reCAPTCHA config (required for Firebase v12+ Phone Auth)
+initializeRecaptchaConfig(auth).catch((err) => {
+  console.warn('reCAPTCHA config init warning:', err)
+})
 
 // Store the confirmation result globally so VerifyOTPScreen can access it
 let confirmationResult: ConfirmationResult | null = null
