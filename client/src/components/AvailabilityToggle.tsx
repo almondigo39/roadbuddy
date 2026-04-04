@@ -93,10 +93,6 @@ export default function AvailabilityToggle({
 
   // Manual mode: AVAILABLE state — show countdown + cancel button
   if (isAvailable && availableUntil) {
-    const progress = timeRemaining > 0
-      ? (timeRemaining / (new Date(availableUntil).getTime() - (new Date(availableUntil).getTime() - 30 * 60 * 1000)))
-      : 0
-
     return (
       <div className="w-full rounded-3xl shadow-lg overflow-hidden" style={{ backgroundColor: 'var(--color-available)' }}>
         <div className="py-5 px-6">
