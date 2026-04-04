@@ -10,7 +10,6 @@ export default function LoginScreen() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
   const recaptchaRef = useRef<RecaptchaVerifierType | null>(null)
-  const recaptchaWidgetId = useRef<number | null>(null)
 
   const setupRecaptcha = async () => {
     // Clear previous instance completely
