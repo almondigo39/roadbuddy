@@ -98,77 +98,100 @@ export default function FriendsScreen() {
   ]
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="flex items-center gap-3 px-5 py-4 bg-white border-b border-gray-100">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-        >
-          <ArrowRight className="w-5 h-5 text-text" />
-        </button>
-        <h1 className="text-xl font-bold text-text">חברים</h1>
+    <div className="flex flex-col min-h-screen relative">
+      <div className="absolute top-0 inset-x-0 h-[200px] pointer-events-none"
+           style={{ background: 'linear-gradient(180deg, rgba(51,204,255,0.18) 0%, rgba(51,204,255,0) 100%)' }} />
+
+      {/* Glass header */}
+      <header className="sticky top-0 z-30 glass border-b border-white/40">
+        <div className="flex items-center gap-3 px-5 py-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/60 press shadow-sm"
+          >
+            <ArrowRight className="w-5 h-5 text-text" />
+          </button>
+          <h1 className="text-xl font-bold text-text tracking-tight">חברים</h1>
+        </div>
       </header>
 
-      {/* Tabs */}
-      <div className="flex bg-white border-b border-gray-100">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors relative ${
-              activeTab === tab.key ? 'text-primary' : 'text-text-light'
-            }`}
-          >
-            {tab.label}
-            {tab.key === 'requests' && requests.length > 0 && (
-              <span className="absolute top-2 mr-1 inline-flex items-center justify-center w-5 h-5 text-xs bg-danger text-white rounded-full">
-                {requests.length}
-              </span>
-            )}
-            {activeTab === tab.key && (
-              <div className="absolute bottom-0 right-0 left-0 h-0.5 bg-primary" />
-            )}
-          </button>
-        ))}
+      {/* Segmented tabs */}
+      <div className="px-5 pt-4 relative z-10">
+        <div className="p-1 bg-white/70 backdrop-blur rounded-2xl shadow-sm border border-white flex relative">
+          <div
+            className="absolute top-1 bottom-1 rounded-xl transition-all duration-300 ease-out pointer-events-none"
+            style={{
+              width: 'calc(33.333% - 4px)',
+              right: tabs.findIndex(t => t.key === activeTab) === 0
+                ? '4px'
+                : tabs.findIndex(t => t.key === activeTab) === 1
+                ? 'calc(33.333% + 1px)'
+                : 'calc(66.666% - 2px)',
+              background: 'linear-gradient(135deg, #33CCFF 0%, #00A8E0 100%)',
+              boxShadow: '0 4px 14px -4px rgba(0, 168, 224, 0.55)',
+            }}
+          />
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`relative z-10 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                activeTab === tab.key ? 'text-white' : 'text-text-light'
+              }`}
+            >
+              {tab.label}
+              {tab.key === 'requests' && requests.length > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-xs font-bold bg-danger text-white rounded-full shadow-md">
+                  {requests.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 px-5 py-4">
+      <div className="flex-1 px-5 py-5 relative z-10">
         {/* Friends list tab */}
         {activeTab === 'friends' && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 animate-slide-up">
             {friends.length === 0 ? (
-              <div className="text-center py-12">
-                <UserPlus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-text-light">אין לך חברים עדיין</p>
+              <div className="text-center py-16">
+                <UserPlus className="w-14 h-14 text-gray-300 mx-auto mb-4" />
+                <p className="text-text-light mb-3">אין לך חברים עדיין</p>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('add')}
-                  className="text-primary font-semibold mt-2 hover:underline"
+                  className="font-semibold press"
+                  style={{ color: '#00A8E0' }}
                 >
                   הוסיפו חברים
                 </button>
               </div>
             ) : (
               friends.map(friend => (
-                <div key={friend.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4">
+                <div key={friend.id} className="ios-card p-4 border border-white flex items-center gap-4">
                   <div className="relative flex-shrink-0">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-white shadow-md"
+                      style={{ background: 'linear-gradient(135deg, #5DD7FF 0%, #00A8E0 100%)' }}
+                    >
                       {friend.avatarUrl ? (
-                        <img src={friend.avatarUrl} alt={friend.name} className="w-full h-full object-cover rounded-full" />
+                        <img src={friend.avatarUrl} alt={friend.name} className="w-full h-full object-cover" />
                       ) : (
-                        <User className="w-6 h-6 text-text-light" />
+                        <User className="w-6 h-6 text-white" />
                       )}
                     </div>
                     <div
-                      className={`absolute -bottom-0.5 -left-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                        friend.isAvailable ? 'bg-available' : 'bg-gray-400'
-                      }`}
+                      className="absolute -bottom-0.5 -left-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
+                      style={{ background: friend.isAvailable ? '#2ED573' : '#B0BCCC' }}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-text truncate">{friend.name}</h3>
-                    <p className="text-sm text-text-light">
+                    <p className="text-xs text-text-light">
                       {friend.isAvailable ? 'זמין/ה' : 'לא זמין/ה'}
                     </p>
                   </div>
@@ -180,35 +203,44 @@ export default function FriendsScreen() {
 
         {/* Pending requests tab */}
         {activeTab === 'requests' && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 animate-slide-up">
             {requests.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center py-16">
                 <p className="text-text-light">אין בקשות ממתינות</p>
               </div>
             ) : (
               requests.map(request => (
-                <div key={request.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                <div key={request.id} className="ios-card p-4 border border-white flex items-center gap-4">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-white shadow-md flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #5DD7FF 0%, #00A8E0 100%)' }}
+                  >
                     {request.from.avatarUrl ? (
-                      <img src={request.from.avatarUrl} alt={request.from.name} className="w-full h-full object-cover rounded-full" />
+                      <img src={request.from.avatarUrl} alt={request.from.name} className="w-full h-full object-cover" />
                     ) : (
-                      <User className="w-6 h-6 text-text-light" />
+                      <User className="w-6 h-6 text-white" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-text truncate">{request.from.name}</h3>
-                    <p className="text-sm text-text-light">{request.from.phoneNumber}</p>
+                    <p className="text-xs text-text-light" dir="ltr">{request.from.phoneNumber}</p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
                     <button
+                      type="button"
                       onClick={() => handleAccept(request.id)}
-                      className="w-10 h-10 bg-available rounded-xl flex items-center justify-center text-white hover:bg-available-dark transition-colors active:scale-95"
+                      className="w-10 h-10 rounded-2xl flex items-center justify-center text-white press"
+                      style={{
+                        background: 'linear-gradient(135deg, #2ED573 0%, #20BF6B 100%)',
+                        boxShadow: '0 6px 16px -4px rgba(46, 213, 115, 0.55)',
+                      }}
                     >
                       <Check className="w-5 h-5" />
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleDecline(request.id)}
-                      className="w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center text-text-light hover:bg-gray-300 transition-colors active:scale-95"
+                      className="w-10 h-10 rounded-2xl flex items-center justify-center bg-gray-100 text-text-light press"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -221,8 +253,8 @@ export default function FriendsScreen() {
 
         {/* Add friend tab */}
         {activeTab === 'add' && (
-          <div>
-            <p className="text-text-light mb-4 text-center">
+          <div className="animate-slide-up">
+            <p className="text-text-light mb-4 text-center text-sm">
               הזינו מספר טלפון של חבר/ה כדי לשלוח בקשת חברות
             </p>
             <form onSubmit={handleSendRequest} className="flex flex-col gap-3">
@@ -234,9 +266,10 @@ export default function FriendsScreen() {
                     setSearchPhone(e.target.value)
                     setAddStatus('idle')
                   }}
-                  placeholder="050-1234567"
-                  className="w-full px-4 py-4 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary transition-colors text-right"
+                  placeholder="0501234567"
+                  className="w-full px-5 py-4 bg-white border border-border rounded-2xl focus:outline-none focus:border-primary focus:shadow-[0_0_0_4px_rgba(51,204,255,0.15)] transition-all text-right"
                   dir="ltr"
+                  style={{ boxShadow: '0 1px 2px rgba(20,33,61,0.04), 0 8px 20px rgba(20,33,61,0.05)' }}
                 />
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-light" />
               </div>
@@ -244,7 +277,11 @@ export default function FriendsScreen() {
               <button
                 type="submit"
                 disabled={!searchPhone.trim() || addStatus === 'loading'}
-                className="w-full py-4 bg-primary text-white font-semibold rounded-2xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full py-4 text-white font-semibold rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed press flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #33CCFF 0%, #00A8E0 100%)',
+                  boxShadow: '0 10px 30px -8px rgba(0, 168, 224, 0.6)',
+                }}
               >
                 {addStatus === 'loading' ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -257,12 +294,16 @@ export default function FriendsScreen() {
               </button>
 
               {addStatus === 'sent' && (
-                <p className="text-available text-center font-medium">
-                  בקשת החברות נשלחה בהצלחה!
-                </p>
+                <div className="px-4 py-3 rounded-2xl bg-green-50 border border-green-100">
+                  <p className="text-center font-medium text-sm" style={{ color: '#20BF6B' }}>
+                    ✓ בקשת החברות נשלחה בהצלחה!
+                  </p>
+                </div>
               )}
               {addStatus === 'error' && (
-                <p className="text-danger text-center text-sm">{addError}</p>
+                <div className="px-4 py-3 rounded-2xl bg-red-50 border border-red-100">
+                  <p className="text-danger text-center text-sm font-medium">{addError}</p>
+                </div>
               )}
             </form>
           </div>

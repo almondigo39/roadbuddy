@@ -94,21 +94,33 @@ export default function VerifyOTPScreen() {
   }, [code])
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-6 py-12">
-      <div className="mb-10 text-center">
-        <div className="w-20 h-20 bg-secondary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-          <ShieldCheck className="w-10 h-10 text-white" />
+    <div className="flex flex-col items-center justify-center min-h-screen px-6 py-12 relative overflow-hidden">
+      {/* Decorative gradient blobs */}
+      <div className="absolute top-[-120px] right-[-80px] w-[280px] h-[280px] rounded-full blur-3xl opacity-40 pointer-events-none"
+           style={{ background: 'radial-gradient(circle, #33CCFF 0%, transparent 70%)' }} />
+      <div className="absolute bottom-[-120px] left-[-80px] w-[280px] h-[280px] rounded-full blur-3xl opacity-30 pointer-events-none"
+           style={{ background: 'radial-gradient(circle, #FFD400 0%, transparent 70%)' }} />
+
+      <div className="mb-10 text-center relative z-10 animate-ios-pop">
+        <div
+          className="w-24 h-24 rounded-[28px] flex items-center justify-center mx-auto mb-6"
+          style={{
+            background: 'linear-gradient(135deg, #33CCFF 0%, #00A8E0 100%)',
+            boxShadow: '0 20px 50px -10px rgba(0, 168, 224, 0.55), inset 0 1px 0 rgba(255,255,255,0.3)',
+          }}
+        >
+          <ShieldCheck className="w-11 h-11 text-white" strokeWidth={2.4} />
         </div>
-        <h1 className="text-2xl font-bold text-text mb-2">
+        <h1 className="text-2xl font-bold text-text mb-2 tracking-tight">
           הזינו את הקוד שקיבלתם
         </h1>
-        <p className="text-text-light">
-          שלחנו קוד אימות ל-{phone}
+        <p className="text-text-light text-sm">
+          שלחנו קוד אימות ל-<span dir="ltr" className="font-mono">{phone}</span>
         </p>
       </div>
 
       {/* OTP Input - 6 digits */}
-      <div className="flex gap-2 mb-6" dir="ltr">
+      <div className="flex gap-2 mb-6 relative z-10 animate-slide-up" dir="ltr">
         {code.map((digit, index) => (
           <input
             key={index}
@@ -119,22 +131,27 @@ export default function VerifyOTPScreen() {
             value={digit}
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
-            className="w-12 h-14 text-center text-2xl font-bold bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary transition-colors"
+            className="w-12 h-14 text-center text-2xl font-bold bg-white border border-border rounded-2xl focus:outline-none focus:border-primary focus:shadow-[0_0_0_4px_rgba(51,204,255,0.15)] transition-all"
+            style={{ boxShadow: '0 1px 2px rgba(20,33,61,0.04), 0 8px 20px rgba(20,33,61,0.05)' }}
           />
         ))}
       </div>
 
       {error && (
-        <p className="text-danger text-sm mb-4 text-center">{error}</p>
+        <div className="mb-4 px-4 py-3 rounded-2xl bg-red-50 border border-red-100 relative z-10">
+          <p className="text-danger text-sm text-center font-medium">{error}</p>
+        </div>
       )}
 
       {isLoading && (
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-primary border-t-transparent rounded-full animate-spin relative z-10" />
       )}
 
       <button
+        type="button"
         onClick={() => navigate('/login')}
-        className="mt-6 text-primary text-sm hover:underline"
+        className="mt-6 text-sm font-semibold relative z-10 press"
+        style={{ color: '#00A8E0' }}
       >
         שינוי מספר טלפון
       </button>
