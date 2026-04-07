@@ -154,61 +154,72 @@ export default function MainScreen() {
   const unavailableFriends = friends.filter(f => !f.isAvailable)
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 py-4 bg-white border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-5 h-5 text-text-light" />
-            )}
+    <div className="flex flex-col min-h-screen relative">
+      {/* Decorative background gradient */}
+      <div className="absolute top-0 inset-x-0 h-[280px] pointer-events-none"
+           style={{ background: 'linear-gradient(180deg, rgba(51,204,255,0.18) 0%, rgba(51,204,255,0) 100%)' }} />
+
+      {/* Glass header */}
+      <header className="sticky top-0 z-30 glass border-b border-white/40">
+        <div className="flex items-center justify-between px-5 py-3">
+          <button
+            onClick={() => navigate('/profile-setup')}
+            className="flex items-center gap-3 press"
+          >
+            <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-white shadow-md flex items-center justify-center"
+                 style={{ background: 'linear-gradient(135deg, #33CCFF 0%, #00A8E0 100%)' }}>
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-5 h-5 text-white" />
+              )}
+            </div>
+            <span className="font-semibold text-text text-sm">{user?.name || 'משתמש'}</span>
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            <CarFront className="w-5 h-5 text-primary-dark" />
+            <h1 className="text-base font-bold tracking-tight" style={{ color: '#00A8E0' }}>RoadBuddy</h1>
           </div>
-          <span className="font-semibold text-text">{user?.name || 'משתמש'}</span>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold text-primary">RoadBuddy</h1>
-          <CarFront className="w-6 h-6 text-primary" />
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/60 hover:bg-white press shadow-sm"
+          >
+            <Settings className="w-5 h-5 text-text-light" />
+          </button>
         </div>
-
-        <button
-          onClick={() => navigate('/settings')}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-        >
-          <Settings className="w-5 h-5 text-text-light" />
-        </button>
       </header>
 
       {/* Main content */}
-      <div className="flex-1 px-5 py-6 pb-24">
-        {/* Mode selector: Manual / Auto */}
-        <div className="flex items-center justify-between mb-4 bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-2">
-            {isAutoMode ? (
-              <>
-                <Activity className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-text">אוטומטי (זיהוי נסיעה)</span>
-              </>
-            ) : (
-              <>
-                <Zap className="w-4 h-4 text-text-light" />
-                <span className="text-sm font-medium text-text">ידני</span>
-              </>
-            )}
-          </div>
+      <div className="flex-1 px-5 py-5 pb-28 relative z-10">
+        {/* Mode selector — segmented control iOS style */}
+        <div className="mb-5 p-1 bg-white/70 backdrop-blur rounded-2xl shadow-sm border border-white flex relative">
+          <div
+            className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl transition-all duration-300 ease-out"
+            style={{
+              right: isAutoMode ? '4px' : 'calc(50% + 0px)',
+              background: 'linear-gradient(135deg, #33CCFF 0%, #00A8E0 100%)',
+              boxShadow: '0 4px 14px -4px rgba(0, 168, 224, 0.55)',
+            }}
+          />
           <button
-            onClick={handleModeToggle}
-            className={`relative w-12 h-7 rounded-full transition-colors duration-300 ${
-              isAutoMode ? 'bg-primary' : 'bg-gray-300'
+            onClick={() => !isAutoMode || handleModeToggle()}
+            className={`relative flex-1 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-sm font-semibold transition-colors ${
+              isAutoMode ? 'text-white' : 'text-text-light'
             }`}
           >
-            <div
-              className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${
-                isAutoMode ? 'left-5' : 'left-0.5'
-              }`}
-            />
+            <Activity className="w-4 h-4" />
+            <span>אוטומטי</span>
+          </button>
+          <button
+            onClick={() => isAutoMode && handleModeToggle()}
+            className={`relative flex-1 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-sm font-semibold transition-colors ${
+              !isAutoMode ? 'text-white' : 'text-text-light'
+            }`}
+          >
+            <Zap className="w-4 h-4" />
+            <span>ידני</span>
           </button>
         </div>
 
@@ -284,10 +295,13 @@ export default function MainScreen() {
       {/* Floating action button - navigate to friends list */}
       <button
         onClick={() => navigate('/friends')}
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-secondary rounded-full flex items-center justify-center text-white shadow-xl hover:bg-secondary-light transition-colors active:scale-95"
-        style={{ maxWidth: '480px' }}
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full flex items-center justify-center text-white press"
+        style={{
+          background: 'linear-gradient(135deg, #FF8800 0%, #FF6A00 100%)',
+          boxShadow: '0 14px 36px -8px rgba(255, 136, 0, 0.6), 0 4px 10px rgba(255, 136, 0, 0.3)',
+        }}
       >
-        <Users className="w-6 h-6" />
+        <Users className="w-7 h-7" strokeWidth={2.4} />
       </button>
     </div>
   )

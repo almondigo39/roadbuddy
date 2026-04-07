@@ -61,10 +61,16 @@ export default function AvailabilityToggle({
   if (autoMode) {
     if (isDriving) {
       return (
-        <div className="w-full py-5 rounded-3xl shadow-lg" style={{ backgroundColor: 'var(--color-available)' }}>
+        <div
+          className="w-full py-6 rounded-[28px] animate-ios-pop"
+          style={{
+            background: 'linear-gradient(135deg, #2ED573 0%, #20BF6B 100%)',
+            boxShadow: '0 18px 40px -12px rgba(46, 213, 115, 0.55)',
+          }}
+        >
           <div className="flex items-center justify-center gap-3 text-white">
             <CarFront className="w-6 h-6" />
-            <span className="font-bold text-xl">בנסיעה — זמין/ה לשיחות</span>
+            <span className="font-bold text-xl tracking-tight">בנסיעה — זמין/ה לשיחות</span>
             {/* Pulsing green dot */}
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
@@ -79,10 +85,16 @@ export default function AvailabilityToggle({
     }
 
     return (
-      <div className="w-full py-5 rounded-3xl shadow-lg bg-gray-400">
+      <div
+        className="w-full py-6 rounded-[28px]"
+        style={{
+          background: 'linear-gradient(135deg, #B0BCCC 0%, #8B97A8 100%)',
+          boxShadow: '0 12px 30px -10px rgba(108, 122, 147, 0.4)',
+        }}
+      >
         <div className="flex items-center justify-center gap-3 text-white">
           <Pause className="w-6 h-6" />
-          <span className="font-bold text-xl">לא בנסיעה</span>
+          <span className="font-bold text-xl tracking-tight">לא בנסיעה</span>
         </div>
         <p className="text-center text-white/70 text-xs mt-2">
           מצב אוטומטי — הזמינות משתנה לפי זיהוי נסיעה
@@ -94,24 +106,30 @@ export default function AvailabilityToggle({
   // Manual mode: AVAILABLE state — show countdown + cancel button
   if (isAvailable && availableUntil) {
     return (
-      <div className="w-full rounded-3xl shadow-lg overflow-hidden" style={{ backgroundColor: 'var(--color-available)' }}>
-        <div className="py-5 px-6">
-          <div className="flex items-center justify-center gap-3 text-white mb-2">
+      <div
+        className="w-full rounded-[28px] overflow-hidden animate-ios-pop"
+        style={{
+          background: 'linear-gradient(135deg, #2ED573 0%, #20BF6B 100%)',
+          boxShadow: '0 18px 40px -12px rgba(46, 213, 115, 0.55)',
+        }}
+      >
+        <div className="py-6 px-6">
+          <div className="flex items-center justify-center gap-3 text-white mb-3">
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
             </span>
-            <span className="font-bold text-xl">זמין/ה לשיחות</span>
+            <span className="font-bold text-2xl tracking-tight">זמין/ה לשיחות</span>
           </div>
-          <div className="flex items-center justify-center gap-2 text-white/90">
-            <Clock className="w-4 h-4" />
-            <span className="text-lg font-mono font-semibold">{formatTimeRemaining(timeRemaining)}</span>
+          <div className="flex items-center justify-center gap-2 text-white">
+            <Clock className="w-5 h-5" />
+            <span className="text-2xl font-mono font-bold tabular-nums">{formatTimeRemaining(timeRemaining)}</span>
           </div>
         </div>
         <button
           onClick={onTurnOff}
           disabled={isLoading}
-          className="w-full py-3 bg-white/20 text-white font-semibold hover:bg-white/30 transition-colors active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70"
+          className="w-full py-4 bg-white/15 backdrop-blur text-white font-semibold transition-colors active:bg-white/25 flex items-center justify-center gap-2 disabled:opacity-70 border-t border-white/20"
         >
           <X className="w-4 h-4" />
           <span>סיום זמינות</span>
@@ -123,14 +141,22 @@ export default function AvailabilityToggle({
   // Manual mode: NOT AVAILABLE — show duration selection buttons
   return (
     <div className="w-full">
-      <p className="text-center text-text-light text-sm mb-3">לכמה זמן להיות זמין/ה?</p>
+      <p className="text-center text-text-light text-sm mb-3 font-medium">לכמה זמן להיות זמין/ה?</p>
       <div className="flex gap-3">
-        {DURATION_OPTIONS.map((option) => (
+        {DURATION_OPTIONS.map((option, idx) => (
           <button
             key={option.minutes}
             onClick={() => onSetDuration(option.minutes)}
             disabled={isLoading}
-            className="flex-1 py-4 rounded-2xl font-bold text-lg transition-all duration-200 active:scale-[0.95] disabled:opacity-70 shadow-md border-2 border-gray-200 bg-white text-text hover:border-primary hover:text-primary hover:shadow-lg"
+            className="flex-1 py-5 rounded-[22px] font-bold text-lg press disabled:opacity-70 text-white relative overflow-hidden"
+            style={{
+              background: idx === 0
+                ? 'linear-gradient(135deg, #5DD7FF 0%, #33CCFF 100%)'
+                : idx === 1
+                ? 'linear-gradient(135deg, #33CCFF 0%, #00A8E0 100%)'
+                : 'linear-gradient(135deg, #00A8E0 0%, #0085B3 100%)',
+              boxShadow: '0 12px 28px -10px rgba(0, 168, 224, 0.5)',
+            }}
           >
             {option.label}
           </button>

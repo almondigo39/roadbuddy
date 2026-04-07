@@ -66,7 +66,11 @@ export default function CallScreen({ callId: _callId, participants, onEnd }: Cal
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col" dir="rtl">
+    <div
+      className="fixed inset-0 z-50 flex flex-col"
+      dir="rtl"
+      style={{ background: 'linear-gradient(180deg, #0F2A4A 0%, #14213D 50%, #0A1628 100%)' }}
+    >
       {/* Top section: title and timer */}
       <div className="flex flex-col items-center pt-12 pb-6">
         <h2 className="text-white text-xl font-bold mb-2">שיחה פעילה</h2>

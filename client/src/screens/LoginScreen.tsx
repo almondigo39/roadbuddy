@@ -93,27 +93,39 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-6 py-12">
+    <div className="flex flex-col items-center justify-center min-h-screen px-6 py-12 relative overflow-hidden">
+      {/* Decorative gradient blobs */}
+      <div className="absolute top-[-120px] right-[-80px] w-[280px] h-[280px] rounded-full blur-3xl opacity-40"
+           style={{ background: 'radial-gradient(circle, #33CCFF 0%, transparent 70%)' }} />
+      <div className="absolute bottom-[-120px] left-[-80px] w-[280px] h-[280px] rounded-full blur-3xl opacity-30"
+           style={{ background: 'radial-gradient(circle, #FFD400 0%, transparent 70%)' }} />
+
       {/* reCAPTCHA container (invisible) */}
       <div id="recaptcha-container"></div>
 
       {/* Logo / Title area */}
-      <div className="mb-12 text-center">
-        <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-          <Phone className="w-10 h-10 text-white" />
+      <div className="mb-12 text-center relative z-10 animate-ios-pop">
+        <div
+          className="w-24 h-24 rounded-[28px] flex items-center justify-center mx-auto mb-6"
+          style={{
+            background: 'linear-gradient(135deg, #33CCFF 0%, #00A8E0 100%)',
+            boxShadow: '0 20px 50px -10px rgba(0, 168, 224, 0.55), inset 0 1px 0 rgba(255,255,255,0.3)',
+          }}
+        >
+          <Phone className="w-11 h-11 text-white" strokeWidth={2.5} />
         </div>
-        <h1 className="text-3xl font-bold text-text mb-2">
+        <h1 className="text-3xl font-bold text-text mb-2 tracking-tight">
           ברוכים הבאים ל-RoadBuddy
         </h1>
-        <p className="text-text-light text-lg">
+        <p className="text-text-light text-base">
           חברים בדרך, תמיד לצידך
         </p>
       </div>
 
       {/* Phone input form */}
-      <form onSubmit={handleSubmit} className="w-full max-w-sm">
-        <label className="block text-sm font-medium text-text-light mb-2">
-          הזינו מספר טלפון
+      <form onSubmit={handleSubmit} className="w-full max-w-sm relative z-10 animate-slide-up">
+        <label className="block text-sm font-semibold text-text-light mb-2 px-1">
+          מספר טלפון
         </label>
         <div className="relative mb-4">
           <input
@@ -121,23 +133,30 @@ export default function LoginScreen() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="0501234567"
-            className="w-full px-4 py-4 text-lg bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary transition-colors text-right"
+            className="w-full px-5 py-4 text-lg bg-white border border-border rounded-2xl focus:outline-none focus:border-primary focus:shadow-[0_0_0_4px_rgba(51,204,255,0.15)] transition-all text-right"
             dir="ltr"
+            style={{ boxShadow: '0 1px 2px rgba(20,33,61,0.04), 0 8px 20px rgba(20,33,61,0.05)' }}
           />
           <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-light" />
         </div>
 
         {error && (
-          <p className="text-danger text-sm mb-4 text-center">{error}</p>
+          <div className="mb-4 px-4 py-3 rounded-2xl bg-red-50 border border-red-100">
+            <p className="text-danger text-sm text-center font-medium">{error}</p>
+          </div>
         )}
 
         <button
           type="submit"
           disabled={!phone || isLoading}
-          className="w-full py-4 bg-primary text-white text-lg font-semibold rounded-2xl hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          className="w-full py-4 text-white text-lg font-semibold rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed press flex items-center justify-center gap-2"
+          style={{
+            background: 'linear-gradient(135deg, #33CCFF 0%, #00A8E0 100%)',
+            boxShadow: '0 10px 30px -8px rgba(0, 168, 224, 0.6)',
+          }}
         >
           {isLoading ? (
-            <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-[3px] border-white border-t-transparent rounded-full animate-spin" />
           ) : (
             <>
               <span>שליחת קוד</span>
